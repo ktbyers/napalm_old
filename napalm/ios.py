@@ -14,9 +14,6 @@
 
 from netmiko import ConnectHandler, FileTransfer
 from base import NetworkDriver
-import random
-import string
-
 
 from exceptions import MergeConfigException, ReplaceConfigException, SessionLockedException
 from datetime import datetime
