@@ -17,6 +17,7 @@ from iosxr import IOSXRDriver
 from junos import JunOSDriver
 from fortios import FortiOSDriver
 from ibm import IBMDriver
+from ios import IOSDriver
 
 def get_network_driver(vendor):
     driver_mapping = {
@@ -28,6 +29,7 @@ def get_network_driver(vendor):
         'JUNIPER': JunOSDriver,
         'FORTIOS': FortiOSDriver,
         'IBM': IBMDriver,
+        'IOS': IOSDriver,
     }
     try:
         return driver_mapping[vendor.upper()]
