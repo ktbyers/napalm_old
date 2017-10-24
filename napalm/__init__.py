@@ -3,6 +3,15 @@ import sys
 from napalm.base import get_network_driver
 from napalm._SUPPORTED_DRIVERS import SUPPORTED_DRIVERS
 
+from napalm.base.base import NetworkDriver
+from napalm.base.exceptions import ReplaceConfigException, MergeConfigException, \
+            ConnectionClosedException, CommandErrorException
+
+from napalm.base.utils import py23_compat  # noqa
+from napalm.base import constants       # noqa
+from napalm.base import helpers     # noqa
+
+
 # Verify Python Version that is running
 try:
     if not(sys.version_info.major == 2 and sys.version_info.minor == 7) and \
@@ -16,4 +25,5 @@ try:
 except pkg_resources.DistributionNotFound:
     __version__ = "Not installed"
 
-__all__ = ('get_network_driver', 'SUPPORTED_DRIVERS')
+__all__ = ('get_network_driver', 'SUPPORTED_DRIVERS', 'NetworkDriver', 'ReplaceConfigException',
+           'MergeConfigException', 'ConnectionClosedException', 'CommandErrorException')
