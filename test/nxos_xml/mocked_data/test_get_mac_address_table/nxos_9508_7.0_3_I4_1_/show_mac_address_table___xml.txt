@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<nf:rpc-reply xmlns:nf="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns="http://www.cisco.com/nxos:1.0:l2fm">
+ <nf:data>
+  <show>
+   <mac>
+	<address-table>
+ 	<__XML__OPT_Cmd_show_mac_addr_tbl_static>
+  	<__XML__OPT_Cmd_show_mac_addr_tbl_local>
+   	<__XML__OPT_Cmd_show_mac_addr_tbl_address>
+    	<__XML__OPT_Cmd_show_mac_addr_tbl___readonly__>
+     	<__readonly__>
+      	<header>Legend:
+    	* - primary entry, G - Gateway MAC, (R) - Routed MAC, O - Overlay MAC
+    	age - seconds since last seen,+ - primary entry using vPC Peer-Link,
+    	(T) - True, (F) - False, C - ControlPlane MAC
+</header>
+      	<header>   VLAN 	MAC Address  	Type  	age 	Secure NTFY Ports
+</header>
+      	<header>---------+-----------------+--------+---------+------+----+------------------
+</header>
+      	<TABLE_mac_address>
+<ROW_mac_address>
+        	<disp_mac_addr>f8c2.8846.e53f</disp_mac_addr>
+        	<disp_type>G </disp_type>
+        	<disp_vlan>2</disp_vlan>
+        	<disp_is_static>enabled</disp_is_static>
+        	<disp_age>0</disp_age>
+        	<disp_is_secure>disabled</disp_is_secure>
+        	<disp_is_ntfy>disabled</disp_is_ntfy>
+        	<disp_port>Vlan2(R)</disp_port>
+</ROW_mac_address>
+<ROW_mac_address>
+        	<disp_mac_addr>f8c2.8846.fd7f</disp_mac_addr>
+        	<disp_type>G </disp_type>
+        	<disp_vlan>2</disp_vlan>
+        	<disp_is_static>enabled</disp_is_static>
+        	<disp_age>0</disp_age>
+        	<disp_is_secure>disabled</disp_is_secure>
+        	<disp_is_ntfy>disabled</disp_is_ntfy>
+        	<disp_port>(R)</disp_port>
+</ROW_mac_address>
+         </TABLE_mac_address>
+        </__readonly__>
+       </__XML__OPT_Cmd_show_mac_addr_tbl___readonly__>
+      </__XML__OPT_Cmd_show_mac_addr_tbl_address>
+      </__XML__OPT_Cmd_show_mac_addr_tbl_local>
+     </__XML__OPT_Cmd_show_mac_addr_tbl_static>
+    </address-table>
+   </mac>
+  </show>
+ </nf:data>
+</nf:rpc-reply>

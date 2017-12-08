@@ -1,0 +1,20 @@
+[
+    {
+        "mac": "F8:C2:88:46:E5:3F",
+        "interface": "Vlan2",
+        "vlan": 2,
+        "static": true,
+        "active": true,
+        "moves": -1,
+        "last_move": -1.0
+    },
+    {
+        "mac": "F8:C2:88:46:FD:7F",
+        "interface": "",
+        "vlan": 2,
+        "static": true,
+        "active": true,
+        "moves": -1,
+        "last_move": -1.0
+    }
+]
