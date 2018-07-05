@@ -832,8 +832,6 @@ class IOSDriver(NetworkDriver):
                     reverse_neighbors[key] = local_intf
 
         for lldp_entry in lldp_detail:
-            import pdb
-            pdb.set_trace()
             if local_intf_detected:
                 match = re.search(r"^Local Intf:\s+(\S+)\s*$", lldp_entry, flags=re.M)
                 if match:
@@ -857,6 +855,13 @@ class IOSDriver(NetworkDriver):
                         system_name_alt = system_name_alt.strip()
                         alt_key = "{}_{}".format(system_name_alt, port_id)
                         local_intf = reverse_neighbors.get(alt_key)
+                    if local_intf is None:
+                        system_name_match = re.search(r"^System Name -\s+(\S.*)$", lldp_entry, flags=re.M)
+                        port_id = port_id_match.group(1)
+                        system_name = system_name_match.group(1)[:20]
+                        system_name = system_name.strip()
+                        key = "{}_{}".format(system_name, port_id)
+                        local_intf = reverse_neighbors.get(key)
                 else:
                     local_intf = None
 
