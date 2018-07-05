@@ -705,6 +705,9 @@ class IOSDriver(NetworkDriver):
                     'port': lldp_entry['remote_port'],
                     'hostname': lldp_entry['remote_system_name'],
                 }
+                # Try Chassis ID, if remote_system_name is blank
+                if lldp_dict['hostname'] == 'N/A':
+                    lldp_dict['hostname'] = lldp_entry['remote_chassis_id']
                 lldp[intf_name].append(lldp_dict)
 
         return lldp
@@ -829,6 +832,8 @@ class IOSDriver(NetworkDriver):
                     reverse_neighbors[key] = local_intf
 
         for lldp_entry in lldp_detail:
+            import pdb
+            pdb.set_trace()
             if local_intf_detected:
                 match = re.search(r"^Local Intf:\s+(\S+)\s*$", lldp_entry, flags=re.M)
                 if match:
@@ -837,6 +842,8 @@ class IOSDriver(NetworkDriver):
                 system_name_match = re.search(r"^System Name:\s+(\S.*)$", lldp_entry, flags=re.M)
                 # Cisco is inconsistent on whether the domain name appears in LLDP brief output
                 system_name_alt = re.search(r"^System Name:\s+(\S.*?)\.", lldp_entry, flags=re.M)
+                if not system_name_match and not system_name_alt:
+                    system_name_match = re.search(r"^Chassis id:\s+(\S.*)$", lldp_entry, flags=re.M)
                 port_id_match = re.search(r"^Port id:\s+(\S+)\s*$", lldp_entry, flags=re.M)
                 # Try to find the local_intf from the reverse_neighbors table
                 if system_name_match and port_id_match:
@@ -850,6 +857,8 @@ class IOSDriver(NetworkDriver):
                         system_name_alt = system_name_alt.strip()
                         alt_key = "{}_{}".format(system_name_alt, port_id)
                         local_intf = reverse_neighbors.get(alt_key)
+                else:
+                    local_intf = None
 
             if local_intf is not None:
                 lldp_fields = self._lldp_detail_parser(local_intf, lldp_entry=lldp_entry)
