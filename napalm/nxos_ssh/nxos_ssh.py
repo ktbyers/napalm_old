@@ -29,7 +29,7 @@ from napalm.base.utils import py23_compat
 from napalm.base.exceptions import CommandErrorException
 from napalm.base.exceptions import ReplaceConfigException
 from napalm.base.helpers import canonical_interface_name
-from napalm.nxos import NXOSDriverBase
+from napalm.nxos.nxos import NXOSDriverBase
 
 # Easier to store these as constants
 HOUR_SECONDS = 3600

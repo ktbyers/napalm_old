@@ -16,7 +16,7 @@ def set_device_parameters(request):
         request.cls.device.close()
     request.addfinalizer(fin)
 
-    request.cls.driver = nxos.NXOSDriver
+    request.cls.driver = nxos.NXOSAPIDriver
     request.cls.patched_driver = PatchedNXOSDriver
     request.cls.vendor = 'nxos'
     parent_conftest.set_device_parameters(request)
@@ -27,7 +27,7 @@ def pytest_generate_tests(metafunc):
     parent_conftest.pytest_generate_tests(metafunc, __file__)
 
 
-class PatchedNXOSDriver(nxos.NXOSDriver):
+class PatchedNXOSDriver(nxos.NXOSAPIDriver):
     """Patched NXOS Driver."""
 
     def __init__(self, hostname, username, password, timeout=60, optional_args=None):

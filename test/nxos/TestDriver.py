@@ -27,7 +27,7 @@ class TestConfigNXOSDriver(unittest.TestCase, TestConfigNetworkDriver):
         password = 'vagrant'
         cls.vendor = 'nxos'
 
-        cls.device = nxos.NXOSDriver(hostname, username, password)
+        cls.device = nxos.NXOSAPIDriver(hostname, username, password)
         cls.device.open()
 
         cls.device.load_replace_candidate(filename='%s/initial.conf' % cls.vendor)
