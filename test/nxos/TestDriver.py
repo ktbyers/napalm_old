@@ -14,7 +14,7 @@
 
 import unittest
 
-from napalm.nxos import nxos
+from napalm.nxos_api import NXOSAPIDriver
 from napalm.base.test.base import TestConfigNetworkDriver
 
 
@@ -27,7 +27,7 @@ class TestConfigNXOSDriver(unittest.TestCase, TestConfigNetworkDriver):
         password = 'vagrant'
         cls.vendor = 'nxos'
 
-        cls.device = nxos.NXOSAPIDriver(hostname, username, password)
+        cls.device = NXOSAPIDriver(hostname, username, password)
         cls.device.open()
 
         cls.device.load_replace_candidate(filename='%s/initial.conf' % cls.vendor)

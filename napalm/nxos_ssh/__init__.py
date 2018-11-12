@@ -13,8 +13,6 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-"""napalm.nxos package."""
-
 from napalm.nxos_ssh.nxos_ssh import NXOSSSHDriver
 
 __all__ = ("NXOSSSHDriver",)
