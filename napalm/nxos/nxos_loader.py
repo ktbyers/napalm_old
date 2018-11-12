@@ -1,6 +1,6 @@
 """Select the right NX-OS class based on the transport, default to NX-API."""
 from napalm.base import NetworkDriver
-from napalm.nxos.nxos import NXOSAPIDriver
+from napalm.nxos_api.nxos_api import NXOSAPIDriver
 from napalm.nxos_ssh.nxos_ssh import NXOSSSHDriver
 
 
