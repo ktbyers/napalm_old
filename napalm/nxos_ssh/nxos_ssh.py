@@ -370,6 +370,9 @@ class NXOSSSHDriver(NXOSDriverBase):
 
     def __init__(self, hostname, username, password, timeout=60, optional_args=None):
         super().__init__(hostname, username, password, timeout=timeout, optional_args=optional_args)
+        if optional_args is None:
+            optional_args = {}
+        self.encoding = optional_args.get('encoding', 'cli')
         self.platform = 'nxos_ssh'
 
     def open(self):

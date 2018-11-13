@@ -8,8 +8,8 @@ class NXOSDriver(NetworkDriver):
     """
     Select the right NX-OS class based on the transport, default to NX-API.
 
-    Circular reference problems coupled with get_network_driver caused this class to be in a separate
-    module.
+    Circular reference problems coupled with get_network_driver caused this class to be in a
+    separate module.
 
     You can't use a more standard Factory Function given the way get_network_driver() operates.
     """
