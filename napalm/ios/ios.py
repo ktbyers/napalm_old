@@ -913,57 +913,32 @@ class IOSDriver(NetworkDriver):
 
     def get_facts(self) -> GetFacts:
         """Return a set of facts from the devices."""
-
         vendor = "Cisco"
 
-        """
-{'version': {'bootldr': 'C2960 Boot Loader (C2960-HBOOT-M) Version '
-                        '12.2(35r)SE2, RELEASE SOFTWARE (fc1)',
-             'chassis': 'WS-C2960G-8TC-L',
-             'chassis_sn': 'FOC1308V5NB',
-             'curr_config_register': '0xF',
-             'hostname': 'NS2903-ASW-01',
-             'image_id': 'C2960-LANBASEK9-M',
-             'image_type': 'production image',
-             'last_reload_reason': 'power-on',
-             'main_mem': '65536',
-             'mem_size': {'flash-simulated non-volatile configuration': '64'},
-             'number_of_intfs': {'Gigabit Ethernet': '8',
-                                 'Virtual Ethernet': '4'},
-             'os': 'C2960 boot loader',
-             'platform': 'C2960',
-             'processor_type': 'PowerPC405',
-             'rom': 'Bootstrap program is C2960 boot loader',
-             'rtr_type': 'WS-C2960G-8TC-L',
-             'system_image': 'flash:/c2960-lanbasek9-mz.150-2.SE4.bin',
-             'system_restarted_at': '15:46:58 UTC Sun May 22 2016',
-             'uptime': '27 weeks, 4 days, 16 minutes',
-             'version': '15.0(2)SE4',
-             'version_short': '15.0'}}
-        """
-
         # obtain output from device
-        show_ver = self._send_command("show version", use_genie=True)
-        if isinstance(show_ver, str):
-            show_ver = self._send_command("show version", use_textfsm=True)
-            # pattern = r"Default domain is (\S+)"
-            # match = re.search(pattern, show_hosts)
-            # if match:
-            #    domain_name = match.group(1)
+        cmd = "show version"
+        show_ver = self._send_command(cmd, use_textfsm=True, use_genie=True)
+
+        # Check if textfsm or genie
+        if isinstance(show_ver, list):
+            # TextFSM
             show_ver = show_ver[0]
             serial_number = show_ver.get("serial", "")
             model = show_ver.get("hardware", "")
-
             if isinstance(serial_number, list):
                 serial_number = serial_number[0]
             if isinstance(model, list):
                 model = model[0]
-
-        else:
+        elif isinstance(show_ver, dict):
+            # Genie
             show_ver = show_ver.get("version", {})
             serial_number = show_ver.get("chassis_sn", "")
             model = show_ver.get("chassis", "")
+        else:
+            msg = f"Both TextFSM and Genie failed to parse the output for: {cmd}\n\n{show_ver}"
+            raise ValueError(msg)
 
+        # Common keys for both TextFSM and Genie
         hostname = show_ver.get("hostname", "")
         uptime_str = show_ver.get("uptime", "")
         os_version = show_ver.get("version", "")

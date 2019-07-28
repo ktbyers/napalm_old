@@ -66,13 +66,17 @@ class FakeIOSDevice(BaseTestDouble):
             result = get_structured_data(
                 result, platform="cisco_ios", command=command.strip()
             )
-        if kwargs.get("use_genie"):
+            # If structured data return it
+            if isinstance(result, list) or isinstance(result, dict):
+                return result
+        elif kwargs.get("use_genie"):
             from netmiko.utilities import get_structured_data_genie
 
             result = get_structured_data_genie(
                 result, platform="cisco_ios", command=command.strip()
             )
-
+            if isinstance(result, list) or isinstance(result, dict):
+                return result
         return result
 
     def disconnect(self):
