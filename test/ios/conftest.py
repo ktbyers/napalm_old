@@ -1,14 +1,10 @@
 """Test fixtures."""
-from __future__ import print_function
-from __future__ import unicode_literals
-
 from builtins import super
 
+import os
 import pytest
 from napalm.base.test import conftest as parent_conftest
-
 from napalm.base.test.double import BaseTestDouble
-
 from napalm.ios import ios
 
 
@@ -59,7 +55,25 @@ class FakeIOSDevice(BaseTestDouble):
         filename = "{}.txt".format(self.sanitize_text(command))
         full_path = self.find_file(filename)
         result = self.read_txt_file(full_path)
-        return str(result)
+        if kwargs.get("use_textfsm"):
+            if not os.environ.get("NET_TEXTFSM"):
+                from ntc_templates import parse
+
+                template_dir = parse._get_template_dir()
+                os.environ["NET_TEXTFSM"] = template_dir
+            from netmiko.utilities import get_structured_data
+
+            result = get_structured_data(
+                result, platform="cisco_ios", command=command.strip()
+            )
+        if kwargs.get("use_genie"):
+            from netmiko.utilities import get_structured_data_genie
+
+            result = get_structured_data_genie(
+                result, platform="cisco_ios", command=command.strip()
+            )
+
+        return result
 
     def disconnect(self):
         pass

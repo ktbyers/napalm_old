@@ -167,7 +167,7 @@ class IOSDriver(NetworkDriver):
             self.prompt_quiet_configured = False
         self._netmiko_close()
 
-    def _send_command(self, command):
+    def _send_command(self, command, **kwargs):
         """Wrapper for self.device.send.command().
 
         If command is a list will iterate through commands until valid command.
@@ -175,12 +175,15 @@ class IOSDriver(NetworkDriver):
         try:
             if isinstance(command, list):
                 for cmd in command:
-                    output = self.device.send_command(cmd)
+                    output = self.device.send_command(cmd, **kwargs)
                     if "% Invalid" not in output:
                         break
             else:
-                output = self.device.send_command(command)
-            return self._send_command_postprocess(output)
+                output = self.device.send_command(command, **kwargs)
+            if isinstance(output, str):
+                return self._send_command_postprocess(output)
+            else:
+                return output
         except (socket.error, EOFError) as e:
             raise ConnectionClosedException(str(e))
 
@@ -910,72 +913,90 @@ class IOSDriver(NetworkDriver):
 
     def get_facts(self) -> GetFacts:
         """Return a set of facts from the devices."""
-        # default values.
+
         vendor = "Cisco"
-        uptime = -1
-        serial_number, fqdn, os_version, hostname, domain_name = ("Unknown",) * 5
+
+        """
+{'version': {'bootldr': 'C2960 Boot Loader (C2960-HBOOT-M) Version '
+                        '12.2(35r)SE2, RELEASE SOFTWARE (fc1)',
+             'chassis': 'WS-C2960G-8TC-L',
+             'chassis_sn': 'FOC1308V5NB',
+             'curr_config_register': '0xF',
+             'hostname': 'NS2903-ASW-01',
+             'image_id': 'C2960-LANBASEK9-M',
+             'image_type': 'production image',
+             'last_reload_reason': 'power-on',
+             'main_mem': '65536',
+             'mem_size': {'flash-simulated non-volatile configuration': '64'},
+             'number_of_intfs': {'Gigabit Ethernet': '8',
+                                 'Virtual Ethernet': '4'},
+             'os': 'C2960 boot loader',
+             'platform': 'C2960',
+             'processor_type': 'PowerPC405',
+             'rom': 'Bootstrap program is C2960 boot loader',
+             'rtr_type': 'WS-C2960G-8TC-L',
+             'system_image': 'flash:/c2960-lanbasek9-mz.150-2.SE4.bin',
+             'system_restarted_at': '15:46:58 UTC Sun May 22 2016',
+             'uptime': '27 weeks, 4 days, 16 minutes',
+             'version': '15.0(2)SE4',
+             'version_short': '15.0'}}
+        """
 
         # obtain output from device
-        show_ver = self._send_command("show version")
-        show_hosts = self._send_command("show hosts")
-        show_ip_int_br = self._send_command("show ip interface brief")
+        show_ver = self._send_command("show version", use_genie=True)
+        if isinstance(show_ver, str):
+            show_ver = self._send_command("show version", use_textfsm=True)
+            # pattern = r"Default domain is (\S+)"
+            # match = re.search(pattern, show_hosts)
+            # if match:
+            #    domain_name = match.group(1)
+            show_ver = show_ver[0]
+            serial_number = show_ver.get("serial", "")
+            model = show_ver.get("hardware", "")
 
-        # uptime/serial_number/IOS version
-        for line in show_ver.splitlines():
-            if " uptime is " in line:
-                hostname, uptime_str = line.split(" uptime is ")
-                uptime = self.parse_uptime(uptime_str)
-                hostname = hostname.strip()
+            if isinstance(serial_number, list):
+                serial_number = serial_number[0]
+            if isinstance(model, list):
+                model = model[0]
 
-            if "Processor board ID" in line:
-                _, serial_number = line.split("Processor board ID ")
-                serial_number = serial_number.strip()
+        else:
+            show_ver = show_ver.get("version", {})
+            serial_number = show_ver.get("chassis_sn", "")
+            model = show_ver.get("chassis", "")
 
-            if re.search(r"Cisco IOS Software", line):
-                try:
-                    _, os_version = line.split("Cisco IOS Software, ")
-                except ValueError:
-                    # Handle 'Cisco IOS Software [Denali],'
-                    _, os_version = re.split(r"Cisco IOS Software \[.*?\], ", line)
-            elif re.search(r"IOS \(tm\).+Software", line):
-                _, os_version = line.split("IOS (tm) ")
-
-            os_version = os_version.strip()
+        hostname = show_ver.get("hostname", "")
+        uptime_str = show_ver.get("uptime", "")
+        os_version = show_ver.get("version", "")
+        if not uptime_str:
+            uptime = -1
+        else:
+            uptime = self.parse_uptime(uptime_str)
 
         # Determine domain_name and fqdn
-        for line in show_hosts.splitlines():
-            if "Default domain" in line:
-                _, domain_name = line.split("Default domain is ")
-                domain_name = domain_name.strip()
-                break
-        if domain_name != "Unknown" and hostname != "Unknown":
-            fqdn = "{}.{}".format(hostname, domain_name)
-
-        # model filter
-        match_model = re.search(
-            r"Cisco (.+?) .+bytes of", show_ver, flags=re.IGNORECASE
-        )
-        if match_model:
-            model = match_model.group(1)
+        show_hosts = self._send_command("show hosts")
+        fqdn = ""
+        pattern = r"Default domain is (\S+)"
+        match = re.search(pattern, show_hosts)
+        if match:
+            domain_name = match.group(1)
+            if hostname:
+                fqdn = "{}.{}".format(hostname, domain_name)
         else:
-            model = "Unknown"
+            domain_name = ""
 
         # interface_list filter
-        interface_list = []
-        show_ip_int_br = show_ip_int_br.strip()
-        for line in show_ip_int_br.splitlines():
-            if "Interface " in line:
-                continue
-            interface = line.split()[0]
-            interface_list.append(interface)
+        show_ip_int_br = self._send_command("show ip interface brief", use_genie=True)
+        show_ip_int_br = show_ip_int_br.get("interface", {})
+        interface_list = list(show_ip_int_br.keys())
+        interface_list = [canonical_interface_name(intf) for intf in interface_list]
 
         return {
             "uptime": uptime,
             "vendor": vendor,
-            "os_version": str(os_version),
-            "serial_number": str(serial_number),
-            "model": str(model),
-            "hostname": str(hostname),
+            "os_version": os_version,
+            "serial_number": serial_number,
+            "model": model,
+            "hostname": hostname,
             "fqdn": fqdn,
             "interface_list": interface_list,
         }
