@@ -42,6 +42,7 @@ from napalm.base.helpers import (
     textfsm_extractor,
 )
 from napalm.base.netmiko_helpers import netmiko_args
+from incendio import get_network_driver as incendio_get_driver
 
 # Easier to store these as constants
 HOUR_SECONDS = 3600
@@ -108,6 +109,26 @@ AFI_COMMAND_MAP = {
 }
 
 
+def use_incendio(func):
+    def wrapper(self, *args, **kwargs):
+        # Ensure incendio object exists; pass NAPALM connection to incendio
+        if not hasattr(self, "_incendio"):
+            incendio_driver = incendio_get_driver('ios')
+            optional_args = copy.deepcopy(self.optional_args)
+            optional_args["_napalm_conn"] = self.device
+            incendio_obj = incendio_driver(
+                hostname=self.hostname,
+                username=self.username,
+                password=self.password,
+                timeout=self.timeout,
+                optional_args=optional_args,
+            )
+            incendio_obj.open()
+            self._incendio = incendio_obj
+        return func(self, *args, **kwargs)
+    return wrapper
+
+
 class IOSDriver(NetworkDriver):
     """NAPALM Cisco IOS Handler."""
 
@@ -119,6 +140,7 @@ class IOSDriver(NetworkDriver):
         self.username = username
         self.password = password
         self.timeout = timeout
+        self.optional_args = optional_args
 
         self.transport = optional_args.get("transport", "ssh")
 
@@ -301,21 +323,14 @@ class IOSDriver(NetworkDriver):
         if not return_status:
             raise ReplaceConfigException(msg)
 
+    @use_incendio
     def load_merge_candidate(self, filename=None, config=None):
         """
         SCP file to remote device.
 
         Merge configuration in: copy <file> running-config
         """
-        self.config_replace = False
-        return_status, msg = self._load_candidate_wrapper(
-            source_file=filename,
-            source_config=config,
-            dest_file=self.merge_cfg,
-            file_system=self.dest_file_system,
-        )
-        if not return_status:
-            raise MergeConfigException(msg)
+        self._incendio.load_merge_candidate(filename=filename, config=config)
 
     def _normalize_compare_config(self, diff):
         """Filter out strings that should not show up in the diff."""
@@ -388,53 +403,14 @@ class IOSDriver(NetworkDriver):
             new_diff.append("! No changes specified in merge file.")
         return "\n".join(new_diff)
 
+    @use_incendio
     def compare_config(self):
         """
         show archive config differences <base_file> <new_file>.
 
         Default operation is to compare system:running-config to self.candidate_cfg
         """
-        # Set defaults
-        base_file = "running-config"
-        base_file_system = "system:"
-        if self.config_replace:
-            new_file = self.candidate_cfg
-        else:
-            new_file = self.merge_cfg
-        new_file_system = self.dest_file_system
-
-        base_file_full = self._gen_full_path(
-            filename=base_file, file_system=base_file_system
-        )
-        new_file_full = self._gen_full_path(
-            filename=new_file, file_system=new_file_system
-        )
-
-        if self.config_replace:
-            cmd = "show archive config differences {} {}".format(
-                base_file_full, new_file_full
-            )
-            diff = self.device.send_command_expect(cmd)
-            diff = self._normalize_compare_config(diff)
-        else:
-            # merge
-            cmd = "show archive config incremental-diffs {} ignorecase".format(
-                new_file_full
-            )
-            diff = self.device.send_command_expect(cmd)
-            if "error code 5" in diff or "returned error 5" in diff:
-                diff = (
-                    "You have encountered the obscure 'error 5' message. This generally "
-                    "means you need to add an 'end' statement to the end of your merge changes."
-                )
-            elif "% Invalid" not in diff:
-                diff = self._normalize_merge_diff_incr(diff)
-            else:
-                cmd = "more {}".format(new_file_full)
-                diff = self.device.send_command_expect(cmd)
-                diff = self._normalize_merge_diff(diff)
-
-        return diff.strip()
+        return self._incendio.compare_config()
 
     def _file_prompt_quiet(f):
         """Decorator to toggle 'file prompt quiet' for methods that perform file operations."""
