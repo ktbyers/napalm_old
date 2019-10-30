@@ -23,6 +23,7 @@ import time
 import tempfile
 import uuid
 from collections import defaultdict
+import json
 
 # import third party lib
 from requests.exceptions import ConnectionError
@@ -599,6 +600,76 @@ class NXOSDriverBase(NetworkDriver):
 
         return lldp
 
+    @staticmethod
+    def _get_table_rows(parent_table, table_name, row_name):
+        """
+        Inconsistent behavior:
+        {'TABLE_intf': [{'ROW_intf': {
+        vs
+        {'TABLE_mac_address': {'ROW_mac_address': [{
+        vs
+        {'TABLE_vrf': {'ROW_vrf': {'TABLE_adj': {'ROW_adj': {
+        """
+        if parent_table is None:
+            return []
+        if isinstance(parent_table, str):
+            parent_table = json.loads(parent_table)
+        _table = parent_table.get(table_name)
+        _table_rows = []
+        if isinstance(_table, list):
+            _table_rows = [_table_row.get(row_name) for _table_row in _table]
+        elif isinstance(_table, dict):
+            _table_rows = _table.get(row_name)
+        if not isinstance(_table_rows, list):
+            _table_rows = [_table_rows]
+        return _table_rows
+
+    def _get_reply_table(self, result, table_name, row_name):
+        return self._get_table_rows(result, table_name, row_name)
+
+    def _get_command_table(self, command, table_name, row_name):
+        json_output = self._send_command(command)
+        return self._get_reply_table(json_output, table_name, row_name)
+
+    def _parce_ports(self, vlan_s):
+        vlans = []
+        find_regexp = r"^([A-Za-z\/-]+|.*\/)(\d+)-(\d+)$"
+        vlan_str = ""
+
+        if isinstance(vlan_s, list):
+            vlan_str = ",".join(vlan_s)
+        else:
+            vlan_str = vlan_s
+
+        for vls in vlan_str.split(","):
+            find = re.findall(find_regexp, vls.strip())
+            if find:
+                for i in range(int(find[0][1]), int(find[0][2]) + 1):
+                    vlans.append(find[0][0] + str(i))
+            else:
+                vlans.append(vls.strip())
+        return vlans
+
+    def get_vlans(self):
+        vlans = {}
+        if self.platform == "nxos_ssh":
+            command = "show vlan brief | json"
+        else:
+            command = "show vlan brief"
+
+        vlan_table_raw = self._get_command_table(
+            command, "TABLE_vlanbriefxbrief", "ROW_vlanbriefxbrief"
+        )
+        if isinstance(vlan_table_raw, dict):
+            vlan_table_raw = [vlan_table_raw]
+
+        for vlan in vlan_table_raw:
+            vlans[vlan["vlanshowbr-vlanid"]] = {
+                "name": vlan["vlanshowbr-vlanname"],
+                "interfaces": self._parce_ports(vlan["vlanshowplist-ifidx"]),
+            }
+        return vlans
+
 
 class NXOSDriver(NXOSDriverBase):
     def __init__(self, hostname, username, password, timeout=60, optional_args=None):
@@ -698,35 +769,6 @@ class NXOSDriver(NXOSDriverBase):
             [det.get("count", 0) * det.get("weight") for det in things.values()]
         )
         return time.time() - delta
-
-    @staticmethod
-    def _get_table_rows(parent_table, table_name, row_name):
-        """
-        Inconsistent behavior:
-        {'TABLE_intf': [{'ROW_intf': {
-        vs
-        {'TABLE_mac_address': {'ROW_mac_address': [{
-        vs
-        {'TABLE_vrf': {'ROW_vrf': {'TABLE_adj': {'ROW_adj': {
-        """
-        if parent_table is None:
-            return []
-        _table = parent_table.get(table_name)
-        _table_rows = []
-        if isinstance(_table, list):
-            _table_rows = [_table_row.get(row_name) for _table_row in _table]
-        elif isinstance(_table, dict):
-            _table_rows = _table.get(row_name)
-        if not isinstance(_table_rows, list):
-            _table_rows = [_table_rows]
-        return _table_rows
-
-    def _get_reply_table(self, result, table_name, row_name):
-        return self._get_table_rows(result, table_name, row_name)
-
-    def _get_command_table(self, command, table_name, row_name):
-        json_output = self._send_command(command)
-        return self._get_reply_table(json_output, table_name, row_name)
 
     def is_alive(self):
         if self.device:
@@ -1313,38 +1355,3 @@ class NXOSDriver(NXOSDriverBase):
         # else return results for all VRFs
         else:
             return vrfs
-
-    def get_vlans(self):
-        vlans = {}
-        command = "show vlan brief"
-        vlan_table_raw = self._get_command_table(
-            command, "TABLE_vlanbriefxbrief", "ROW_vlanbriefxbrief"
-        )
-        if isinstance(vlan_table_raw, dict):
-            vlan_table_raw = [vlan_table_raw]
-
-        for vlan in vlan_table_raw:
-            vlans[vlan["vlanshowbr-vlanid"]] = {
-                "name": vlan["vlanshowbr-vlanname"],
-                "interfaces": self._parce_ports(vlan["vlanshowplist-ifidx"]),
-            }
-        return vlans
-
-    def _parce_ports(self, vlan_s):
-        vlans = []
-        find_regexp = r"^([A-Za-z\/-]+|.*\/)(\d+)-(\d+)$"
-        vlan_str = ""
-
-        if isinstance(vlan_s, list):
-            vlan_str = ",".join(vlan_s)
-        else:
-            vlan_str = vlan_s
-
-        for vls in vlan_str.split(","):
-            find = re.findall(find_regexp, vls.strip())
-            if find:
-                for i in range(int(find[0][1]), int(find[0][2]) + 1):
-                    vlans.append(find[0][0] + str(i))
-            else:
-                vlans.append(vls.strip())
-        return vlans

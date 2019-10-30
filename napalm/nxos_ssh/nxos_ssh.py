@@ -22,7 +22,6 @@ import socket
 
 # import third party lib
 from netaddr import IPAddress, IPNetwork
-import json
 from netaddr.core import AddrFormatError
 
 # import NAPALM Base
@@ -1488,69 +1487,3 @@ class NXOSSSHDriver(NXOSDriverBase):
                     continue
                 users[username]["sshkeys"].append(py23_compat.text_type(sshkeyvalue))
         return users
-
-    @staticmethod
-    def _get_table_rows(parent_table, table_name, row_name):
-        """
-        Inconsistent behavior:
-        {'TABLE_intf': [{'ROW_intf': {
-        vs
-        {'TABLE_mac_address': {'ROW_mac_address': [{
-        vs
-        {'TABLE_vrf': {'ROW_vrf': {'TABLE_adj': {'ROW_adj': {
-        """
-        if parent_table is None:
-            return []
-        _table = parent_table.get(table_name)
-        _table_rows = []
-        if isinstance(_table, list):
-            _table_rows = [_table_row.get(row_name) for _table_row in _table]
-        elif isinstance(_table, dict):
-            _table_rows = _table.get(row_name)
-        if not isinstance(_table_rows, list):
-            _table_rows = [_table_rows]
-        return _table_rows
-
-    def _get_reply_table(self, result, table_name, row_name):
-        return self._get_table_rows(result, table_name, row_name)
-
-    def _get_command_table(self, command, table_name, row_name):
-        json_output = self._send_command(command)
-        if type(json_output) is not dict:
-            json_output = json.loads(json_output)
-        return self._get_reply_table(json_output, table_name, row_name)
-
-    def get_vlans(self):
-        vlans = {}
-        command = "show vlan brief | json"
-        vlan_table_raw = self._get_command_table(
-            command, "TABLE_vlanbriefxbrief", "ROW_vlanbriefxbrief"
-        )
-        if isinstance(vlan_table_raw, dict):
-            vlan_table_raw = [vlan_table_raw]
-
-        for vlan in vlan_table_raw:
-            vlans[vlan["vlanshowbr-vlanid"]] = {
-                "name": vlan["vlanshowbr-vlanname"],
-                "interfaces": self._parce_ports(vlan["vlanshowplist-ifidx"]),
-            }
-        return vlans
-
-    def _parce_ports(self, vlan_s):
-        vlans = []
-        find_regexp = r"^([A-Za-z\/-]+|.*\/)(\d+)-(\d+)$"
-        vlan_str = ""
-
-        if isinstance(vlan_s, list):
-            vlan_str = ",".join(vlan_s)
-        else:
-            vlan_str = vlan_s
-
-        for vls in vlan_str.split(","):
-            find = re.findall(find_regexp, vls.strip())
-            if find:
-                for i in range(int(find[0][1]), int(find[0][2]) + 1):
-                    vlans.append(find[0][0] + str(i))
-            else:
-                vlans.append(vls.strip())
-        return vlans
