@@ -636,6 +636,26 @@ class NXOSDriverBase(NetworkDriver):
                 vlans.append(vls.strip())
         return vlans
 
+    def get_vlans(self):
+        vlans = {}
+        if self.platform == "nxos_ssh":
+            command = "show vlan brief | json"
+        else:
+            command = "show vlan brief"
+
+        vlan_table_raw = self._get_command_table(
+            command, "TABLE_vlanbriefxbrief", "ROW_vlanbriefxbrief"
+        )
+        if isinstance(vlan_table_raw, dict):
+            vlan_table_raw = [vlan_table_raw]
+
+        for vlan in vlan_table_raw:
+            vlans[vlan["vlanshowbr-vlanid"]] = {
+                "name": vlan["vlanshowbr-vlanname"],
+                "interfaces": self._parse_vlan_ports(vlan["vlanshowplist-ifidx"]),
+            }
+        return vlans
+
 
 class NXOSDriver(NXOSDriverBase):
     def __init__(self, hostname, username, password, timeout=60, optional_args=None):
@@ -1453,19 +1473,3 @@ class NXOSDriver(NXOSDriverBase):
             "cpu": _process_cpu(cpu_raw),
             "memory": _process_memory(memory_raw),
         }
-
-    def get_vlans(self):
-        vlans = {}
-        command = "show vlan brief"
-        vlan_table_raw = self._get_command_table(
-            command, "TABLE_vlanbriefxbrief", "ROW_vlanbriefxbrief"
-        )
-        if isinstance(vlan_table_raw, dict):
-            vlan_table_raw = [vlan_table_raw]
-
-        for vlan in vlan_table_raw:
-            vlans[vlan["vlanshowbr-vlanid"]] = {
-                "name": vlan["vlanshowbr-vlanname"],
-                "interfaces": self._parse_vlan_ports(vlan["vlanshowplist-ifidx"]),
-            }
-        return vlans
